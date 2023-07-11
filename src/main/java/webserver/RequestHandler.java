@@ -34,12 +34,16 @@ public class RequestHandler extends Thread {
             String[] tokens = line.split(" ");
 
             int contentLength = 0;
+            boolean logined = false;
             while (!line.equals("")) {
                 line = br.readLine();
                 log.debug("header : {}", line);
 
                 if (line.contains("Content-Length")) {
                     contentLength = getContentLength(line);
+                }
+                if (line.contains("Cookie")) {
+                    logined = isLogin(line);
                 }
             }
 
@@ -52,6 +56,24 @@ public class RequestHandler extends Thread {
                 log.debug("User : {}", user);
                 DataBase.addUser(user);
                 DataOutputStream dos = new DataOutputStream(out);
+                response302Header(dos);
+            } else if ("/user/login".equals(url)) {
+                String body = IOUtils.readData(br, contentLength);
+                Map<String, String> params = HttpRequestUtils.parseQueryString(body);
+                User user = DataBase.findUserById(params.get("userId"));
+
+                if(user==null) {
+                    responseSource(out, "/user/login_failed.html");
+                    return;
+                }
+
+                if(user.getPassword().equals(params.get("password"))) {
+                    DataOutputStream dos = new DataOutputStream(out);
+                    response302LoginHeader(dos);
+                } else {
+                    responseSource(out, "/user/login_failed.html");
+                }
+
             } else {
                 responseSource(out, url);
             }
@@ -81,6 +103,16 @@ public class RequestHandler extends Thread {
         responseBody(dos, body);
     }
 
+    private boolean isLogin(String line) {
+        String[] tokens = line.split(" ");
+        Map<String, String> cookies = HttpRequestUtils.parseCookies(tokens[1].trim());
+        String val = cookies.get("logined");
+        if (val == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(val);
+    }
+
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
@@ -95,6 +127,17 @@ public class RequestHandler extends Thread {
     private void response302Header(DataOutputStream dos) {
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Logation: /index.html \r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response302LoginHeader(DataOutputStream dos) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Set-Cookie: Logined=true \r\n");
             dos.writeBytes("Logation: /index.html \r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
