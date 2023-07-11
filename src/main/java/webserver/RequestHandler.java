@@ -37,7 +37,7 @@ public class RequestHandler extends Thread {
 
             int contentLength = 0;
             boolean logined = false;
-            while (!line.equals("")) {
+            while (!"".equals(line)) {
                 line = br.readLine();
                 log.debug("header : {}", line);
 
@@ -51,15 +51,16 @@ public class RequestHandler extends Thread {
 
             String url = getUrl(tokens);
 
-            if (("/user/create".equals(url))) {
-                String body = IOUtils.readData(br, contentLength);
-                Map<String, String> params = HttpRequestUtils.parseQueryString(body);
+            if (url.startsWith("/user/create")) {
+                String requestBody = IOUtils.readData(br, contentLength);
+                Map<String, String> params = HttpRequestUtils.parseQueryString(requestBody);
                 User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
                 log.debug("User : {}", user);
                 DataBase.addUser(user);
                 DataOutputStream dos = new DataOutputStream(out);
                 response302Header(dos);
-            } else if ("/user/login".equals(url)) {
+
+            } else if (url.equals("/user/login")) {
                 String body = IOUtils.readData(br, contentLength);
                 Map<String, String> params = HttpRequestUtils.parseQueryString(body);
                 User user = DataBase.findUserById(params.get("userId"));
@@ -78,7 +79,7 @@ public class RequestHandler extends Thread {
 
             } else if ("/user/list".equals(url)) {
                 System.out.println(logined);
-                if (logined == true) {
+                if (!logined) {
                     responseSource(out, "/user/login.html");
                     return;
                 }
@@ -99,6 +100,7 @@ public class RequestHandler extends Thread {
                 byte[] body = sb.toString().getBytes();
                 response200Header(dos, body.length);
                 responseBody(dos, body);
+
             } else if (url.endsWith(".css")) {
                 DataOutputStream dos = new DataOutputStream(out);
                 byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
@@ -135,7 +137,7 @@ public class RequestHandler extends Thread {
     }
 
     private boolean isLogin(String line) {
-        String[] tokens = line.split(" ");
+        String[] tokens = line.split(":");
         Map<String, String> cookies = HttpRequestUtils.parseCookies(tokens[1].trim());
         String val = cookies.get("logined");
         if (val == null) {
@@ -169,7 +171,7 @@ public class RequestHandler extends Thread {
     private void response302Header(DataOutputStream dos) {
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-            dos.writeBytes("Logation: /index.html \r\n");
+            dos.writeBytes("Location: /index.html \r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -179,8 +181,8 @@ public class RequestHandler extends Thread {
     private void response302LoginHeader(DataOutputStream dos) {
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-            dos.writeBytes("Set-Cookie: Logined=true \r\n");
-            dos.writeBytes("Logation: /index.html \r\n");
+            dos.writeBytes("Set-Cookie: logined=true \r\n");
+            dos.writeBytes("Location: /index.html \r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
