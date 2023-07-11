@@ -3,6 +3,8 @@ package webserver;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 import db.DataBase;
@@ -74,6 +76,29 @@ public class RequestHandler extends Thread {
                     responseSource(out, "/user/login_failed.html");
                 }
 
+            } else if ("/user/list".equals(url)) {
+                System.out.println(logined);
+                if (logined == true) {
+                    responseSource(out, "/user/login.html");
+                    return;
+                }
+                Collection<User> users = DataBase.findAll();
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("<table border = '1'>");
+                for (User user : users) {
+                    sb.append("<tr>");
+                    sb.append("<td>" + user.getUserId() + "</td>");
+                    sb.append("<td>" + user.getName() + "</td>");
+                    sb.append("<td>" + user.getEmail() + "</td>");
+                    sb.append("<tr>");
+                }
+                sb.append("</table>");
+
+                DataOutputStream dos = new DataOutputStream(out);
+                byte[] body = sb.toString().getBytes();
+                response200Header(dos, body.length);
+                responseBody(dos, body);
             } else {
                 responseSource(out, url);
             }
